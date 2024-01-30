@@ -3,40 +3,63 @@ const assignmentTable = base.getTable('Dev Case Assignments');
 const officeTable = base.getTable('Dev Offices');
 let cases = await caseTable.selectRecordsAsync({fields: ['Id', 'County']});
 let assignments = await assignmentTable.selectRecordsAsync({fields: ['Case Id']});
-let offices = await officeTable.selectRecordsAsync({fields: ['Name', 'Planet', 'Counties served']});
-let county = '';
+let offices = await officeTable.selectRecordsAsync({fields: ['Id', 'Name', 'Planet', 'Counties served']});
+let caseCounty = '';
 let phrase = '';
+let officeData = {};
+let officeAssigned = '';
 
-// Loop through the case records.
-for (let caseRecord of cases.records) {
-  // Get the value in the 'Id' column.
-  let caseIdFromCases = caseRecord.getCellValueAsString('Id');
-  // Get the value in the 'County' column.
-  county = record.getCellValueAsString('County');
-  // Assign a phrase based on the value of the 'County' column.
-  if (county == 'Baltimore') {
-    phrase = 'Hello, world!'
-  } else if (county == 'Allegany') {
-    phrase = 'So long and thanks for all the fish.'
-  } else (
-    phrase = 'No county, no fish.'
-  )
+// Get the data about offices in a usable format.
+for (let office of offices.records) {
+  officeData[office.getCellValue('Id')] = {
+    name: office.getCellValue('Name'), 
+    planet: office.getCellValue('Planet'), 
+    countiesServed: office.getCellValue('Counties served')
+  };
 
-  // Update the 'Output' column in the Dev Cases tavke with that phrase.
-  caseTable.updateRecordAsync(caseRecord.id, {'Output': phrase});
+  // Get a list of counties served.
+  let officeCounties =[];
+  for (let i = 0; i < officeData[office.getCellValue('Id')].countiesServed.length; i++) {
+    officeCounties[i] = officeData[office.getCellValue('Id')].countiesServed[i]['name'];
+  }
 
-  // Loop through the assignment records.
-  for (let assignment of assignments.records) {
-    // Get the value in the 'Case Id' column.
-    let caseIdFromAssignments = assignment.getCellValueAsString('Case Id');
+  // For testing.
+  // console.log(officeData[office.getCellValue('Id')].name);
+  // console.log(officeData[office.getCellValue('Id')].planet.name);
+  // console.log(Object.values(officeData[office.getCellValue('Id')].countiesServed));
 
-    // For testing.
-    console.log(`assignmentTable case id: ${caseIdFromAssignments}`);
-    console.log(`caseTable case id:  ${caseIdFromCases}`);
-    
-    // If the Ids from the Cases and Assignments table match, update the 'Cross table output' column.
-    if (caseIdFromCases == caseIdFromAssignments) {
-       assignmentTable.updateRecordAsync(assignment.id, {'Cross table output': 'DONT PANTIC'});
+
+  // Loop through the case records.
+  for (let caseRecord of cases.records) {
+    // Get the value in the 'County' column.
+    caseCounty = caseRecord.getCellValueAsString('County');
+
+    // Check to see if caseCounty is within officeCounties.
+    if (officeCounties.includes(caseCounty)) {
+      officeAssigned = officeData[office.getCellValue('Id')].name; 
     }
+
+    // For testing
+    console.log(`
+      officeCounty: ${officeCounties}
+      caseCounty: ${officeCounties}
+      officeAssigned: ${officeAssigned}
+      `)
+
+    // Assign a phrase based on the value of the 'County' column.
+    if (caseCounty == 'Baltimore') {
+      phrase = 'Hello, world!'
+    } else if (caseCounty == 'Allegany') {
+      phrase = 'So long and thanks for all the fish.'
+    } else (
+      phrase = 'No county, no fish.'
+    )
+
+  // Update the 'Output' and 'Office assigned' columns in the Dev Cases table.
+  caseTable.updateRecordAsync(caseRecord.id, {
+    'Output': phrase,
+    'Office assigned': officeAssigned
+  });
+  
   }
 }
