@@ -1,65 +1,55 @@
 const caseTable = base.getTable('Dev Cases');
-const assignmentTable = base.getTable('Dev Case Assignments');
 const officeTable = base.getTable('Dev Offices');
 let cases = await caseTable.selectRecordsAsync({fields: ['Id', 'County']});
-let assignments = await assignmentTable.selectRecordsAsync({fields: ['Case Id']});
 let offices = await officeTable.selectRecordsAsync({fields: ['Id', 'Name', 'Planet', 'Counties served']});
 let caseCounty = '';
-let phrase = '';
-let officeData = {};
-let officeAssigned = '';
+let officesData = {};
+let recommendedOffices = [];
+let recOffice1 = '';
+let recOffice2 = '';
+let recOffice3 = '';
 
-// Get the data about offices in a usable format.
+// Get the Airtable record ID of the current Case record.
+let inputConfig = input.config();
+let caseId = inputConfig.CaseID;
+
+// Use the Airtable record ID to get the Case record.
+let caseRecord = cases.getRecord(caseId);
+
+// Get the county of the current case record.
+caseCounty = caseRecord.getCellValue('County').name;
+
+// Get information about the offices.
 for (let office of offices.records) {
-  officeData[office.getCellValue('Id')] = {
+  let officeId = office.getCellValue('Id');
+  officesData[officeId] = {
     name: office.getCellValue('Name'), 
-    planet: office.getCellValue('Planet'), 
-    countiesServed: office.getCellValue('Counties served')
+    planet: office.getCellValueAsString('Planet'), 
+    countiesServed: office.getCellValueAsString('Counties served')
   };
-
-  // Get a list of counties served.
-  let officeCounties =[];
-  for (let i = 0; i < officeData[office.getCellValue('Id')].countiesServed.length; i++) {
-    officeCounties[i] = officeData[office.getCellValue('Id')].countiesServed[i]['name'];
+  if (officesData[officeId].countiesServed.includes(caseCounty)) {
+    recommendedOffices.push(officesData[officeId].name);
   }
+};
 
-  // For testing.
-  // console.log(officeData[office.getCellValue('Id')].name);
-  // console.log(officeData[office.getCellValue('Id')].planet.name);
-  // console.log(Object.values(officeData[office.getCellValue('Id')].countiesServed));
-
-
-  // Loop through the case records.
-  for (let caseRecord of cases.records) {
-    // Get the value in the 'County' column.
-    caseCounty = caseRecord.getCellValueAsString('County');
-
-    // Check to see if caseCounty is within officeCounties.
-    if (officeCounties.includes(caseCounty)) {
-      officeAssigned = officeData[office.getCellValue('Id')].name; 
+/* This is rather inellegant code, so hope to find a better solution in future.
+ * Essentially, this code block breaks out the recommendedOffices array, checking if that index in the array exsists.
+ * If the index exists, is assigns the value to a new variable.
+ * Seperate variables are being used to update seperate columns in the Dev Cases table.
+*/ 
+if (recommendedOffices[0]) {
+    recOffice1 = recommendedOffices[0];
+    if (recommendedOffices[1]) {
+        recOffice2 = recommendedOffices[1];
+        if (recommendedOffices[2]) {
+            recOffice3 = recommendedOffices[2];
+        }
     }
-
-    // For testing
-    console.log(`
-      officeCounty: ${officeCounties}
-      caseCounty: ${officeCounties}
-      officeAssigned: ${officeAssigned}
-      `)
-
-    // Assign a phrase based on the value of the 'County' column.
-    if (caseCounty == 'Baltimore') {
-      phrase = 'Hello, world!'
-    } else if (caseCounty == 'Allegany') {
-      phrase = 'So long and thanks for all the fish.'
-    } else (
-      phrase = 'No county, no fish.'
-    )
-
-  // Update the 'Output' and 'Office assigned' columns in the Dev Cases table.
-  caseTable.updateRecordAsync(caseRecord.id, {
-    'Output': phrase,
-    'Office assigned': officeAssigned
-  });
-  
-  }
 }
+
+// Update columns in the Dev Cases table with the relevant values.
+caseTable.updateRecordAsync(caseId, {
+  'Recommended Office 1': recOffice1,
+  'Recommended Office 2': recOffice2,
+  'Recommended Office 3': recOffice3,
+});
